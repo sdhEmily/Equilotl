@@ -66,6 +66,45 @@ func init() {
 }
 
 func main() {
+	var fallbackScale float32 = 1.0
+	if scaleStr := os.Getenv("EQUILOTL_SCALE"); scaleStr != "" {
+		if s, err := strconv.ParseFloat(scaleStr, 32); err == nil && s > 0 && s < 99 {
+			fallbackScale = float32(s)
+			Log.Info("Using custom DPI scale:", fallbackScale)
+		} else {
+			Log.Warn("Invalid value for EQUILOTL_SCALE:", scaleStr)
+		}
+	} else if scaleStr := os.Getenv("EQUILOTL_DPI_SCALE"); scaleStr != "" {
+		if s, err := strconv.ParseFloat(scaleStr, 32); err == nil && s > 0 && s < 99 {
+			fallbackScale = float32(s)
+			Log.Info("Using custom DPI scale:", fallbackScale)
+		} else {
+			Log.Warn("Invalid value for EQUILOTL_DPI_SCALE:", scaleStr)
+		}
+	}
+
+	imgui.SetAssertHandler(func(expression string, file string, line int) {
+		if strings.Contains(expression, "DpiScale") {
+			Log.Warn("Ignoring ImGui DPI scale assertion failure:", expression, "at", file, "line", line)
+
+			io := imgui.CurrentPlatformIO()
+			monitors := io.Monitors().Slice()
+			for i, mon := range monitors {
+				scale := mon.DpiScale()
+				if scale <= 0 || scale >= 99 {
+					Log.Warn("Resetting invalid monitor", i, "DPI scale from", scale, "to", fallbackScale)
+					mon.SetDpiScale(fallbackScale)
+				}
+			}
+			return
+		}
+		panic(imgui.AssertionError{
+			Expression: expression,
+			File:       file,
+			Line:       line,
+		})
+	})
+
 	InitGithubDownloader()
 	discords = FindDiscords()
 
