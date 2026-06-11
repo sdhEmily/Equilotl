@@ -98,12 +98,13 @@ jobs:
           - arch: amd64
             runner: macos-15-intel
             artifact_name: Equilotl-macos
-            zip_name: Equilotl-darwin-x64.zip
+            gui_name: Equilotl-darwin-x64.zip
+            cli_name: EquilotlCli-darwin-x64
           - arch: arm64
             runner: macos-latest
             artifact_name: Equilotl-macos-arm64
-            zip_name: Equilotl-darwin-arm64.zip
-
+            gui_name: Equilotl-darwin-arm64.zip
+            cli_name: EquilotlCli-darwin-arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -142,7 +143,7 @@ jobs:
           GOARCH=${{ matrix.arch }} go build -v -tags "cli" -ldflags "-s
           -w -X 'equilotl/buildinfo.InstallerGitHash=$(git rev-parse --short
           HEAD)' -X 'equilotl/buildinfo.InstallerTag=${{ github.ref_name }}'" -o
-          EquilotlCli-darwin-${{ matrix.arch }}
+          ${{ matrix.cli_name }}
 
       - name: Update executable
         run: |
@@ -173,7 +174,7 @@ jobs:
         run: |
           codesign --force --options runtime --sign "Developer ID Application" Equilotl.app/Contents/MacOS/Equilotl
           codesign --force --options runtime --sign "Developer ID Application" Equilotl.app
-          codesign --force --options runtime --sign "Developer ID Application" EquilotlCli-darwin-${{ matrix.arch }}
+          codesign --force --options runtime --sign "Developer ID Application" ${{ matrix.cli_name }}
 
       - name: Notarize the executables
         env:
@@ -183,22 +184,22 @@ jobs:
         run: |
           echo "$API_KEY" > apple.p8
           ditto -c -k --keepParent Equilotl.app Equilotl-notarize.zip
-          ditto -c -k EquilotlCli-darwin-${{ matrix.arch }} EquilotlCli-notarize.zip
+          ditto -c -k ${{ matrix.cli_name }} EquilotlCli-notarize.zip
           xcrun notarytool submit Equilotl-notarize.zip --key apple.p8 --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER" --wait
           xcrun stapler staple Equilotl.app
           xcrun notarytool submit EquilotlCli-notarize.zip --key apple.p8 --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER" --wait
           rm apple.p8 Equilotl-notarize.zip EquilotlCli-notarize.zip
 
       - name: Create final zip
-        run: zip -r ${{ matrix.zip_name }} Equilotl.app
+        run: zip -r ${{ matrix.gui_name }} Equilotl.app
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact_name }}
           path: |
-            ${{ matrix.zip_name }}
-            EquilotlCli-darwin-${{ matrix.arch }}
+            ${{ matrix.gui_name }}
+            ${{ matrix.cli_name }}
 
   build-windows:
     runs-on: windows-latest
@@ -310,6 +311,6 @@ jobs:
             linux/EquilotlCli-linux
             macos/Equilotl-darwin-x64.zip
             macos/Equilotl-darwin-arm64.zip
-            macos/EquilotlCli-darwin-amd64
+            macos/EquilotlCli-darwin-x64
             macos/EquilotlCli-darwin-arm64
             windows/Equilotl*.exe
